@@ -9,9 +9,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.search.data_loader import DEFAULT_DATASET, DEFAULT_TOP_N, DataLoader
+from src.etl.data_loader import DEFAULT_DATASET, DEFAULT_TOP_N, DataLoader
+from src.search.text_search import TextSearch
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logging.getLogger("elastic_transport.transport").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +25,11 @@ def parse_args() -> argparse.Namespace:
         "--dataset-path",
         default=DEFAULT_DATASET,
         help="Kaggle dataset path.",
+    )
+    parser.add_argument(
+        "--skip-indexing",
+        action="store_true",
+        help="Stop after the transform step; do not index into Elasticsearch.",
     )
     parser.add_argument(
         "--top-n",
@@ -54,6 +61,27 @@ def main() -> int:
         logger.info("Curated dataset is available at %s", parquet_path)
     except Exception:
         logger.exception("Failed to transform dataset into Parquet.")
+        return 1
+
+    if args.skip_indexing:
+        logger.info("Skipping Elasticsearch indexing (--skip-indexing).")
+        return 0
+
+    try:
+        search = TextSearch()
+        search.build_index(loader.load_data())
+        search.es_client.indices.refresh(index=search.index_name)
+        count = search.es_client.count(index=search.index_name)["count"]
+        logger.info(
+            "Elasticsearch index '%s' now holds %d documents.",
+            search.index_name,
+            count,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to index documents into Elasticsearch. "
+            "Is the server running? Start it with 'make up'."
+        )
         return 1
 
     return 0
