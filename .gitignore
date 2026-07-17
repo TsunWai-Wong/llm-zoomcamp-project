@@ -1,0 +1,6 @@
+.env
+uv.lock
+__pycache__
+data/raw/
+data/curated/
+.DS_Store
