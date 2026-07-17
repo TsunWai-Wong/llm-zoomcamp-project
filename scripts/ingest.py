@@ -10,7 +10,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.etl.data_loader import DEFAULT_DATASET, DEFAULT_TOP_N, DataLoader
+from src.search.embedder import Embedder
 from src.search.text_search import TextSearch
+from src.search.vector_search import VectorSearch
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logging.getLogger("elastic_transport.transport").setLevel(logging.WARNING)
@@ -81,6 +83,19 @@ def main() -> int:
         logger.exception(
             "Failed to index documents into Elasticsearch. "
             "Is the server running? Start it with 'make up'."
+        )
+        return 1
+
+    try:
+        vector_search = VectorSearch(Embedder())
+        vector_search.embedd_documents(loader.load_data())
+        logger.info(
+            "Lyrics embeddings are available at %s", vector_search.embeddings_parquet
+        )
+    except Exception:
+        logger.exception(
+            "Failed to embed documents. Is the embedding model downloaded? "
+            "Run 'uv run python3 scripts/download_embedding_model.py' first."
         )
         return 1
 
