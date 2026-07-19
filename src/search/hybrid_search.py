@@ -23,7 +23,17 @@ class HybridSearch():
         ranked = sorted(scores, key=scores.get, reverse=True)
         return [docs[key] for key in ranked[:num_results]]
 
-    def hybrid_search(self, query, k=60):
-        text_results = self.text_searcher.text_search(query, num_results=10)
-        vector_results = self.vector_searcher.vector_search(query, num_results=10)
-        return self._rrf([text_results, vector_results], k=k)
+    def hybrid_search(self, query: str, num_results: int = 10) -> list[dict]:
+        """Search the song corpus with combined full-text and semantic search.
+
+        Runs Elasticsearch full-text search and vector similarity search,
+        then merges both rankings with Reciprocal Rank Fusion.
+
+        Args:
+            query: Natural-language description of the songs to find.
+            num_results: Maximum number of songs to return.
+        """
+        pool_size = max(2 * num_results, 10)
+        text_results = self.text_searcher.text_search(query, num_results=pool_size)
+        vector_results = self.vector_searcher.vector_search(query, num_results=pool_size)
+        return self._rrf([text_results, vector_results], num_results=num_results)
