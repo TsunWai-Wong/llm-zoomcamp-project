@@ -1,6 +1,6 @@
 class Prompt:
     @classmethod
-    def get_agent_instruction():
+    def get_agent_instruction(self):
         return """
 You're a music expert assistant.
 You're given a question from an audience and your task is to answer it.

@@ -63,7 +63,7 @@ class TextSearch:
                     "must": {
                         "multi_match": {
                             "query": query,
-                            "fields": ["lyrics", "title^2"],
+                            "fields": ["lyrics^4", "title"],
                             "type": "best_fields"
                         }
                     },
