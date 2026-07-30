@@ -1,7 +1,11 @@
 import json
 
+from opentelemetry import trace
+
 from .llm_service import LLMService
 from .tool_registry import ToolRegistry
+
+tracer = trace.get_tracer("rag_agent")
 
 class AgentLoopError(Exception):
     pass
@@ -17,28 +21,38 @@ class RAGAgent:
 
     def agentic_loop(self, messages: list, max_turns: int = 25) -> str:
         """Run the agentic loop until the model produces a final text response."""
-        tool_schemas = self.tools.get_schemas()
-        last_answer = None
+        with tracer.start_as_current_span("agentic_loop") as agent_span:
+            agent_span.set_attribute("openinference.span.kind", "AGENT")
+            agent_span.set_attribute("input.value", str(messages[-1].get("content", "")))
 
-        for _ in range(max_turns):
-            response = self.llm.chat(messages=messages, tools=tool_schemas)
-            messages.extend(response.output)
+            tool_schemas = self.tools.get_schemas()
+            last_answer = None
 
-            has_function_calls = False
-            for item in response.output:
-                if item.type == "function_call":
-                    has_function_calls = True
-                    arguments = json.loads(item.arguments)
-                    result = self.tools.dispatch(item.name, arguments)
-                    messages.append({
-                        "type": "function_call_output",
-                        "call_id": item.call_id,
-                        "output": result,
-                    })
-                elif item.type == "message":
-                    last_answer = item.content[0].text
+            for _ in range(max_turns):
+                response = self.llm.chat(messages=messages, tools=tool_schemas)
+                messages.extend(response.output)
 
-            if not has_function_calls:
-                return last_answer
+                has_function_calls = False
+                for item in response.output:
+                    if item.type == "function_call":
+                        has_function_calls = True
+                        arguments = json.loads(item.arguments)
+                        with tracer.start_as_current_span(item.name) as tool_span:
+                            tool_span.set_attribute("openinference.span.kind", "TOOL")
+                            tool_span.set_attribute("tool.name", item.name)
+                            tool_span.set_attribute("input.value", item.arguments)
+                            result = self.tools.dispatch(item.name, arguments)
+                            tool_span.set_attribute("output.value", result)
+                        messages.append({
+                            "type": "function_call_output",
+                            "call_id": item.call_id,
+                            "output": result,
+                        })
+                    elif item.type == "message":
+                        last_answer = item.content[0].text
 
-        raise AgentLoopError(f"Agent did not complete within {max_turns} turns")
+                if not has_function_calls:
+                    agent_span.set_attribute("output.value", last_answer or "")
+                    return last_answer
+
+            raise AgentLoopError(f"Agent did not complete within {max_turns} turns")
