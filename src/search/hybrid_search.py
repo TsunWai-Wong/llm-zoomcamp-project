@@ -1,5 +1,9 @@
+from src.monitoring import get_tracer, set_documents
+
 from .text_search import TextSearch
 from .vector_search import VectorSearch
+
+tracer = get_tracer(__name__)
 
 class HybridSearch():
     text_searcher: TextSearch
@@ -11,6 +15,7 @@ class HybridSearch():
         self.vector_searcher = vector_searcher
 
     def _rrf(self, result_lists, k=60, num_results=5):
+        """Fuse ranked lists, returning the top documents with their RRF scores."""
         scores = {}
         docs = {}
 
@@ -21,7 +26,7 @@ class HybridSearch():
                 docs[key] = doc
 
         ranked = sorted(scores, key=scores.get, reverse=True)
-        return [docs[key] for key in ranked[:num_results]]
+        return [(docs[key], scores[key]) for key in ranked[:num_results]]
 
     def hybrid_search(self, query: str, num_results: int = 10) -> list[dict]:
         """Search the song corpus with combined full-text and semantic search.
@@ -33,7 +38,21 @@ class HybridSearch():
             query: Natural-language description of the songs to find.
             num_results: Maximum number of songs to return.
         """
-        pool_size = max(2 * num_results, 10)
-        text_results = self.text_searcher.text_search(query, num_results=pool_size)
-        vector_results = self.vector_searcher.vector_search(query, num_results=pool_size)
-        return self._rrf([text_results, vector_results], num_results=num_results)
+        with tracer.start_as_current_span(
+            "hybrid_search", openinference_span_kind="chain"
+        ) as span:
+            span.set_input(query)
+            pool_size = max(2 * num_results, 10)
+            span.set_attribute("retriever.pool_size", pool_size)
+
+            text_results = self.text_searcher.text_search(query, num_results=pool_size)
+            vector_results = self.vector_searcher.vector_search(
+                query, num_results=pool_size
+            )
+
+            fused = self._rrf(
+                [text_results, vector_results], num_results=num_results
+            )
+            documents = [document for document, _ in fused]
+            set_documents(span, documents, scores=[score for _, score in fused])
+            return documents

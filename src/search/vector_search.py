@@ -6,10 +6,13 @@ import minsearch
 import numpy as np
 from tqdm import tqdm
 
+from src.monitoring import get_tracer, set_documents
 from src.search.embedder import Embedder
 
 
 logger = logging.getLogger(__name__)
+
+tracer = get_tracer(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_EMBEDDINGS_PARQUET = PROJECT_ROOT / "data" / "curated" / "embeddings.parquet"
@@ -103,5 +106,12 @@ class VectorSearch:
         if self.vector_index is None:
             raise RuntimeError("Vector index not built. Run build_index() first.")
 
-        query_vector = self.embedder.encode(query)
-        return self.vector_index.search(query_vector, num_results=num_results)
+        with tracer.start_as_current_span(
+            "vector_search", openinference_span_kind="retriever"
+        ) as span:
+            span.set_input(query)
+            span.set_attribute("retriever.num_results", num_results)
+            query_vector = self.embedder.encode(query)
+            results = self.vector_index.search(query_vector, num_results=num_results)
+            set_documents(span, results)
+            return results

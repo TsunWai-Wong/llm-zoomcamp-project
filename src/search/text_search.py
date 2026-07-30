@@ -4,6 +4,11 @@ import duckdb
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
+from src.monitoring import get_tracer, set_documents
+
+
+tracer = get_tracer(__name__)
+
 
 class TextSearch:
     es_client: Elasticsearch
@@ -56,6 +61,20 @@ class TextSearch:
 
     def text_search(self, query: str, num_results: int = 5) -> list[dict]:
         """Full-text search over titles and lyrics, best matches first."""
+        with tracer.start_as_current_span(
+            "text_search", openinference_span_kind="retriever"
+        ) as span:
+            span.set_input(query)
+            span.set_attribute("retriever.num_results", num_results)
+            hits = self._text_search(query, num_results)
+            set_documents(
+                span,
+                [hit["_source"] for hit in hits],
+                scores=[hit["_score"] for hit in hits],
+            )
+            return [hit["_source"] for hit in hits]
+
+    def _text_search(self, query: str, num_results: int) -> list[dict]:
         search_query = {
             "size": num_results,
             "query": {
@@ -74,6 +93,6 @@ class TextSearch:
             index=self.index_name,
             body=search_query,
         )
-        return [hit["_source"] for hit in response["hits"]["hits"]]
+        return response["hits"]["hits"]
     
 

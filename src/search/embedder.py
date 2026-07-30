@@ -1,10 +1,16 @@
 import numpy as np
 import onnxruntime as ort
+from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
 from tokenizers import Tokenizer
 from pathlib import Path
 
+from src.monitoring import get_tracer
+
 DEFAULT_MODEL_PATH = Path(__file__).resolve().parent / "models" / "Xenova" / "all-MiniLM-L6-v2"
 MAX_TOKENS = 256
+MODEL_NAME = "Xenova/all-MiniLM-L6-v2"
+
+tracer = get_tracer(__name__)
 
 
 class Embedder:
@@ -18,7 +24,20 @@ class Embedder:
         self.input_names = {inp.name for inp in self.session.get_inputs()}
 
     def encode(self, text, normalize=True):
-        return self.encode_batch([text], normalize=normalize)[0]
+        # Only the single-text path is traced. encode_batch() is also the
+        # ingest path, where one span per 32-document batch would bury the
+        # query traces under thousands of spans.
+        with tracer.start_as_current_span(
+            "embed_query", openinference_span_kind="embedding"
+        ) as span:
+            span.set_input(text)
+            span.set_attribute(SpanAttributes.EMBEDDING_MODEL_NAME, MODEL_NAME)
+            span.set_attribute(
+                f"{SpanAttributes.EMBEDDING_EMBEDDINGS}.0."
+                f"{EmbeddingAttributes.EMBEDDING_TEXT}",
+                text,
+            )
+            return self.encode_batch([text], normalize=normalize)[0]
 
     def encode_batch(self, texts, normalize=True):
         self.tokenizer.enable_padding()
