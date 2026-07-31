@@ -1,0 +1,40 @@
+[theme]
+base = "light"
+
+# Page sits on a very light grey; message bubbles and inputs are the lighter
+# surface on top of it.
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#31333F"
+primaryColor = "#4F8BF9"
+
+# Soft rounded frames on the chat input, buttons and pills.
+baseRadius = "0.75rem"
+buttonRadius = "0.625rem"
+borderColor = "#E4E7EC"
+showWidgetBorder = true
+
+font = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif"
+headingFont = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif"
+headingFontWeights = [700, 700, 600, 600, 600, 600]
+baseFontSize = 16
+
+# Inter is fetched at render time; the stack above is the fallback when the
+# app runs without a network connection.
+[[theme.fontFaces]]
+family = "Inter"
+url = "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.woff2"
+weight = 400
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-600-normal.woff2"
+weight = 600
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.woff2"
+weight = 700
+style = "normal"
