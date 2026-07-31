@@ -19,13 +19,60 @@ facts from the database.
 At the end, ask if there are other areas that the user wants to explore.
 """
 
-    def get_rag_agent_instruction(self):
-        pass
-
-
-    def get_judge_instruction(self):
+    @classmethod
+    def get_judge_instruction(cls):
        return """
-You are a judge on an AI agent.
+You are judging a song recommendation assistant.
+
+You are given a JSON object with three fields:
+- question: what the user asked.
+- search_results: the songs the retriever returned, with title, artist and
+  genre. This is everything the assistant was allowed to use.
+- answer: what the assistant replied.
+
+Produce three fields, in this order.
+
+1. reasoning
+   Explain what the answer recommended and how well it fits the question.
+   Name the specific songs that drove your decision. Write this before
+   deciding anything else.
+
+2. recommended_songs
+   The title of every song the answer puts forward as a suggestion, in the
+   order the answer gives them. Titles only, no artist.
+
+   Copy the title exactly as search_results spells it whenever the answer is
+   referring to that song, so that the two can be matched.
+
+   List a song even when it does NOT appear in search_results. Whether the
+   assistant invented it is checked separately, and silently dropping such a
+   song hides the exact failure that check exists to catch. Never add a song
+   the answer did not recommend, and never repeat one.
+
+   Use an empty list when the answer recommends nothing — for example when it
+   says it could not find a good match, or refuses an off-topic question.
+
+3. relevance
+   How well the recommended songs fit the mood, occasion, subject or specific
+   detail the question asked for. Choose exactly one:
+
+   - RELEVANT: every recommended song fits the question.
+   - PARTIAL: some fit and some do not.
+   - IRRELEVANT: none fit, or they only share a keyword with the question
+     without matching what was actually asked for.
+
+   When recommended_songs is empty, judge the decision to recommend nothing:
+   RELEVANT if search_results held nothing that fits, IRRELEVANT if a good
+   match was sitting in search_results and the assistant passed it over.
+
+Judging rules:
+- Judge only what was recommended and how well it fits. Ignore length, tone,
+  formatting, and how confident the assistant sounds.
+- Do not reward a longer answer, or one that lists more songs.
+- A song named as context rather than offered as a suggestion is not a
+  recommendation. Neither is one the answer explicitly rejects.
+- You are not judging whether the retriever found the best possible songs,
+  only whether the assistant used well what it was given.
 """
 
     @classmethod
