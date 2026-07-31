@@ -28,6 +28,14 @@ def setup_tracing(project_name: str = PROJECT_NAME) -> None:
     """
     load_dotenv()
     os.environ.setdefault("PHOENIX_COLLECTOR_ENDPOINT", DEFAULT_COLLECTOR_ENDPOINT)
+    # elasticsearch-py reads this when the client is constructed, not per
+    # request, so it only takes effect if setup_tracing() runs before the
+    # first TextSearch(). "raw" puts the query DSL on the ES span as
+    # db.statement; it defaults to "omit" because bodies can carry sensitive
+    # data, which a public lyrics corpus does not.
+    os.environ.setdefault(
+        "OTEL_PYTHON_INSTRUMENTATION_ELASTICSEARCH_CAPTURE_SEARCH_QUERY", "raw"
+    )
 
     from phoenix.otel import register
 
