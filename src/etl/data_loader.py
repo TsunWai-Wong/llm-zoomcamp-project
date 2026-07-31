@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_DATASET = "carlosgdcj/genius-song-lyrics-with-language-information"
 DEFAULT_TOP_N = 10_000
+DEFAULT_CURATED_FILENAME = "songs.parquet"
 
 
 class DataLoader:
@@ -23,13 +24,17 @@ class DataLoader:
         raw_dir: str | Path = PROJECT_ROOT / "data" / "raw",
         curated_dir: str | Path = PROJECT_ROOT / "data" / "curated",
         top_n: int = DEFAULT_TOP_N,
+        curated_filename: str = DEFAULT_CURATED_FILENAME,
     ) -> None:
         self.dataset_path = dataset_path
         self.raw_dir = Path(raw_dir)
         self.curated_dir = Path(curated_dir)
         self.top_n = top_n
         self.raw_csv = self.raw_dir / "song_lyrics.csv"
-        self.curated_parquet = self.curated_dir / "songs.parquet"
+        # Overridable so other curated tables (the ground truth set) can be read
+        # through the same loader. Only load_data() is meaningful for those;
+        # download_data() and transform_data() still target the song corpus.
+        self.curated_parquet = self.curated_dir / curated_filename
 
     def download_data(self, force: bool = False) -> Path:
         """Download the dataset from Kaggle and copy the CSV into the raw folder.
