@@ -1,18 +1,25 @@
-PYTHON = uv run python3 
+PYTHON = uv run python3
 
+.PHONY: all install ingest ground-truth evaluate run down
 
 all: install
 
 install:
 	uv sync
-	uv run python3 scripts/download_embedding_model.py
-	docker compose up -d
+	$(PYTHON) scripts/download_embedding_model.py
+	docker compose up -d --wait
 
-ingest:
-	uv run python3 scripts/ingest.py
+ingest: install
+	$(PYTHON) scripts/ingest.py --skip-etl
 
-up:
-	docker compose up -d
+ground-truth: ingest
+	$(PYTHON) -m src.evals.evals_initializer
+
+evaluate: ingest ground-truth
+	$(PYTHON) -m src.evals.evaluator
+
+run: install ingest
+	uv run streamlit run app.py
 
 down:
 	docker compose down
