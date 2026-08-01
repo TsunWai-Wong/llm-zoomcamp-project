@@ -155,7 +155,7 @@ st.html("<div style='font-size: 5rem; line-height: 1'>🎧</div>")
 title_row = st.container(horizontal=True, vertical_alignment="bottom")
 
 with title_row:
-    st.title("Lyrics song finder", anchor=False, width="stretch")
+    st.title("Songs Finder", anchor=False, width="stretch")
 
 user_just_asked_initial_question = bool(st.session_state.get("initial_question"))
 user_just_clicked_suggestion = bool(st.session_state.get("selected_suggestion"))
