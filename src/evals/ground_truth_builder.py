@@ -39,7 +39,7 @@ class GroundTruthQuestion(BaseModel):
 class GroundTruthQuestionSet(BaseModel):
     questions: List[GroundTruthQuestion]
 
-class EvalsInitializer():
+class GroundTruthBuilder():
     llm: LLMService
     data: DataLoader
     sample_size: int
@@ -208,11 +208,11 @@ class EvalsInitializer():
 
 
 if __name__ == "__main__":
-    # Run from the project root as: python -m src.evals.evals_initializer
+    # Run from the project root as: python -m src.evals.ground_truth_builder
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     llm = LLMService()
     data = DataLoader()
-    evals_initializer = EvalsInitializer(llm, data, sample_size=500)
+    ground_truth_builder = GroundTruthBuilder(llm, data, sample_size=500)
 
-    evals_initializer.generate_ground_truth_set()
+    ground_truth_builder.generate_ground_truth_set()

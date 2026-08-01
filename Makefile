@@ -13,7 +13,7 @@ ingest: install
 	$(PYTHON) scripts/ingest.py --skip-etl
 
 ground-truth: ingest
-	$(PYTHON) -m src.evals.evals_initializer
+	$(PYTHON) -m src.evals.ground_truth_builder
 
 evaluate: ingest ground-truth
 	$(PYTHON) -m src.evals.evaluator

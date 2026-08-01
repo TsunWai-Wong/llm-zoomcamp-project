@@ -162,7 +162,7 @@ class Evalutator():
 
 
 if __name__ == "__main__":
-    from src.evals.evals_initializer import DEFAULT_GROUND_TRUTH_PARQUET
+    from src.evals.ground_truth_builder import DEFAULT_GROUND_TRUTH_PARQUET
     from src.search.embedder import Embedder
     from src.agent.tool_registry import ToolRegistry
     from src.agent.rag_agent import RAGAgent
