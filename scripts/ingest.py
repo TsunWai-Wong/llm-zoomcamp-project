@@ -102,7 +102,7 @@ def main() -> int:
     except Exception:
         logger.exception(
             "Failed to index documents into Elasticsearch. "
-            "Is the server running? Start it with 'make up'."
+            "Is the server running? Start it with 'make install'."
         )
         return 1
 
