@@ -216,15 +216,3 @@ if __name__ == "__main__":
     evals_initializer = EvalsInitializer(llm, data, sample_size=500)
 
     evals_initializer.generate_ground_truth_set()
-
-
-    relation = duckdb.read_parquet(str(DEFAULT_GROUND_TRUTH_PARQUET))
-    rows = duckdb.sql(
-                f"""
-                SELECT song_id, title, artist, question, type
-                FROM relation
-                """
-            ).fetchall()
-    print(rows)
-
-    

@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_DATASET = "carlosgdcj/genius-song-lyrics-with-language-information"
 DEFAULT_TOP_N = 10_000
+DEFAULT_RAW_FILENAME = "songs.csv"
 DEFAULT_CURATED_FILENAME = "songs.parquet"
 
 
@@ -30,7 +31,7 @@ class DataLoader:
         self.raw_dir = Path(raw_dir)
         self.curated_dir = Path(curated_dir)
         self.top_n = top_n
-        self.raw_csv = self.raw_dir / "song_lyrics.csv"
+        self.raw_csv = self.raw_dir / DEFAULT_RAW_FILENAME
         # Overridable so other curated tables (the ground truth set) can be read
         # through the same loader. Only load_data() is meaningful for those;
         # download_data() and transform_data() still target the song corpus.

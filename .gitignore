@@ -2,6 +2,5 @@
 uv.lock
 __pycache__
 data/raw/
-data/curated/
 src/search/models/
 .DS_Store
