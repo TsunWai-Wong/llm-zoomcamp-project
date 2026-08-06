@@ -45,11 +45,14 @@ class ParametersSchema(BaseModel):
 
 
 class ToolSchema(BaseModel):
-    """A Responses API function-tool schema, validated before registration."""
+    """A provider-neutral function-tool schema, validated before registration.
+
+    Only the fields every provider needs: each adapter wraps this in its own
+    envelope, so nothing here is specific to one vendor's API.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    type: Literal["function"] = "function"
     name: str = Field(min_length=1)
     description: str = Field(min_length=1)
     parameters: ParametersSchema
@@ -96,7 +99,7 @@ class ToolRegistry:
         return summary, param_docs
 
     def _read_tool(self, handler: Callable) -> dict:
-        """Build a Responses API tool schema from a handler's signature and docstring."""
+        """Build a tool schema from a handler's signature and docstring."""
         summary, param_docs = self._parse_docstring(inspect.getdoc(handler) or "")
         hints = get_type_hints(handler)
 
@@ -111,7 +114,6 @@ class ToolRegistry:
                 required.append(name)
 
         return {
-            "type": "function",
             "name": handler.__name__,
             "description": summary,
             "parameters": {
@@ -133,9 +135,9 @@ class ToolRegistry:
         tool_schema = ToolSchema.model_validate(schema)
         self.tools[name] = Tool(name=name, tool_schema=tool_schema, handler=handler)
 
-    def get_schemas(self) -> list[dict]:
-        """Return schemas for the LLM API call."""
-        return [tool.tool_schema.model_dump() for tool in self.tools.values()]
+    def get_schemas(self) -> list[ToolSchema]:
+        """Return neutral schemas for the provider to convert."""
+        return [tool.tool_schema for tool in self.tools.values()]
 
     def dispatch(self, name: str, arguments: dict) -> str:
         """Execute a tool call and return the result as a string."""

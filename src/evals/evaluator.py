@@ -152,10 +152,10 @@ class Evalutator():
                 "answer": agent_answer,
             }, ensure_ascii=False)
         judgement = self.llm_judge.chat(
-            [{"role": "system", "content": instruction},
-             {"role": "user", "content": user_prompt}],
-             text_format=LLMJudgement
-        ).output_parsed
+            messages=[self.llm_judge.user_message(user_prompt)],
+            system=instruction,
+            text_format=LLMJudgement,
+        ).parsed
         titles = {song["title"].lower() for song in search_results}
         grounded = all(s.lower() in titles for s in judgement.recommended_songs)
         return grounded, judgement.relevance
