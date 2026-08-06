@@ -183,8 +183,8 @@ if __name__ == "__main__":
 
     tools = ToolRegistry()
     tools.register("search", hybrid_search.hybrid_search)
-    agent = RAGAgent(tools, LLMService())
-    conversation = Conversation(agent, Prompt.get_agent_instruction())
+    agent = RAGAgent(tools, LLMService(), Prompt.get_agent_instruction())
+    conversation = Conversation(agent)
 
 
     evaluator = Evalutator(ground_truth, text_search, vector_search, hybrid_search, conversation)

@@ -16,17 +16,21 @@ class AgentLoopError(Exception):
 class RAGAgent:
     tools: ToolRegistry
     llm: LLMService
+    instruction: str
 
 
-    def __init__(self, tools: ToolRegistry, llm: LLMService):
+    def __init__(self, tools: ToolRegistry, llm: LLMService, instruction: str):
         self.tools = tools
         self.llm = llm
+        # The instruction describes the agent, not any one conversation, so it
+        # sits alongside the tools and the model. Being immutable is what lets
+        # an agent be built once and shared while histories stay per session.
+        self.instruction = instruction
 
     def agentic_loop(
         self,
         question: str,
         history: list | None = None,
-        system: str | None = None,
         max_turns: int = 25,
     ) -> tuple[str, list]:
         """Run the agentic loop until the model produces a final text response.
@@ -45,7 +49,9 @@ class RAGAgent:
 
             for _ in range(max_turns):
                 response = self.llm.chat(
-                    messages=messages, system=system, tools=tool_schemas
+                    messages=messages,
+                    system=self.instruction,
+                    tools=tool_schemas,
                 )
 
                 if not response.tool_calls:
