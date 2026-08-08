@@ -164,6 +164,7 @@ class Evalutator():
 if __name__ == "__main__":
     from src.evals.ground_truth_builder import DEFAULT_GROUND_TRUTH_PARQUET
     from src.search.embedder import Embedder
+    from src.search.search_tools import SearchTools
     from src.agent.tool_registry import ToolRegistry
     from src.agent.rag_agent import RAGAgent
 
@@ -180,9 +181,14 @@ if __name__ == "__main__":
     vector_search.build_index(data)
     
     hybrid_search = HybridSearch(text_search, vector_search)
+    # hybrid_search itself stays unregistered and unchanged: it is what the
+    # retrieval metrics measure, so it must not become the trimmed view the
+    # model sees.
+    search_tools = SearchTools(hybrid_search, text_search)
 
     tools = ToolRegistry()
-    tools.register("search", hybrid_search.hybrid_search)
+    tools.register("search_song", search_tools.search_song)
+    tools.register("get_lyrics", search_tools.get_lyrics)
     agent = RAGAgent(tools, LLMService(), Prompt.get_agent_instruction())
     conversation = Conversation(agent)
 

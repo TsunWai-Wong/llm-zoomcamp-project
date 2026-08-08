@@ -115,3 +115,17 @@ class LLMService:
     ) -> list:
         """Append a model turn, and any tool outputs, to the history."""
         return self.provider.extend(messages, response, results)
+
+    def split_turns(
+        self, messages: list, keep_last_turns: int
+    ) -> tuple[list, list]:
+        """Split history into (older, recent) at a user-turn boundary."""
+        return self.provider.split_turns(messages, keep_last_turns)
+
+    def compact(self, messages: list, keep_last_turns: int = 1) -> list:
+        """Drop tool traffic from every turn but the most recent ones."""
+        return self.provider.compact(messages, keep_last_turns)
+
+    def render_transcript(self, messages: list) -> str:
+        """Flatten history to plain text for the summarizer."""
+        return self.provider.render_transcript(messages)

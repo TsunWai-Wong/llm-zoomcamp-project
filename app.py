@@ -13,6 +13,7 @@ from src.etl.data_loader import DataLoader
 from src.monitoring.tracing import setup_tracing
 from src.search.embedder import Embedder
 from src.search.hybrid_search import HybridSearch
+from src.search.search_tools import SearchTools
 from src.search.text_search import TextSearch
 from src.search.vector_search import VectorSearch
 
@@ -70,9 +71,11 @@ def get_agent_parts():
     vector_search = VectorSearch(Embedder())
     vector_search.build_index(data)
     hybrid_search = HybridSearch(text_search, vector_search)
+    search_tools = SearchTools(hybrid_search, text_search)
 
     tools = ToolRegistry()
-    tools.register("search", hybrid_search.hybrid_search)
+    tools.register("search_song", search_tools.search_song)
+    tools.register("get_lyrics", search_tools.get_lyrics)
 
     return RAGAgent(tools, LLMService(), Prompt.get_agent_instruction())
 
