@@ -152,10 +152,10 @@ class Evalutator():
                 "answer": agent_answer,
             }, ensure_ascii=False)
         judgement = self.llm_judge.chat(
-            [{"role": "system", "content": instruction},
-             {"role": "user", "content": user_prompt}],
-             text_format=LLMJudgement
-        ).output_parsed
+            messages=[self.llm_judge.user_message(user_prompt)],
+            system=instruction,
+            text_format=LLMJudgement,
+        ).parsed
         titles = {song["title"].lower() for song in search_results}
         grounded = all(s.lower() in titles for s in judgement.recommended_songs)
         return grounded, judgement.relevance
@@ -183,8 +183,8 @@ if __name__ == "__main__":
 
     tools = ToolRegistry()
     tools.register("search", hybrid_search.hybrid_search)
-    agent = RAGAgent(tools, LLMService())
-    conversation = Conversation(agent, Prompt.get_agent_instruction())
+    agent = RAGAgent(tools, LLMService(), Prompt.get_agent_instruction())
+    conversation = Conversation(agent)
 
 
     evaluator = Evalutator(ground_truth, text_search, vector_search, hybrid_search, conversation)

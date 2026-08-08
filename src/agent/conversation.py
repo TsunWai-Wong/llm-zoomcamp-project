@@ -1,20 +1,23 @@
-from typing import List, Dict
-
 from src.agent.rag_agent import RAGAgent
 
 class Conversation:
     agent: RAGAgent
-    messages: List[Dict[str, str]]
+    history: list
 
-    def __init__(self, agent: RAGAgent, instruction: str):
+    def __init__(self, agent: RAGAgent):
         self.agent = agent
-        self.messages = [{"role": "system", "content": instruction}]
+        self.history = []
 
     def reset(self) -> None:
-        """Drop the conversation history, keeping the system instruction."""
-        self.messages = self.messages[:1]
+        """Drop the conversation history.
+
+        The agent's instruction is not part of it, so a reset conversation still
+        behaves the same way — it has only forgotten what was said.
+        """
+        self.history = []
 
     def ask(self, question: str) -> str:
-        self.messages.append({"role": "user", "content": question})
-        answer = self.agent.agentic_loop(self.messages)
+        answer, self.history = self.agent.agentic_loop(
+            question, history=self.history
+        )
         return answer

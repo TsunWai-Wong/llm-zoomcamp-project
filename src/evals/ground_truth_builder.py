@@ -182,16 +182,12 @@ class GroundTruthBuilder():
     def _generate_question(self, song: Dict[str, str]):
         instruction = Prompt.get_ground_truth_instruction()
 
-        messages = [
-            {"role": "system", "content": instruction},
-            {"role": "user", "content": json.dumps(song, ensure_ascii=False)},
-        ]
-
         response = self.llm.chat(
-            messages=messages,
+            messages=[self.llm.user_message(json.dumps(song, ensure_ascii=False))],
+            system=instruction,
             text_format=GroundTruthQuestionSet,
         )
-        output = response.output_parsed
+        output = response.parsed
 
         results = []
 

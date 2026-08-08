@@ -74,15 +74,13 @@ def get_agent_parts():
     tools = ToolRegistry()
     tools.register("search", hybrid_search.hybrid_search)
 
-    return RAGAgent(tools, LLMService())
+    return RAGAgent(tools, LLMService(), Prompt.get_agent_instruction())
 
 
 def get_conversation():
     """One Conversation per browser session, so histories never mix."""
     if "conversation" not in st.session_state:
-        st.session_state.conversation = Conversation(
-            get_agent_parts(), Prompt.get_agent_instruction()
-        )
+        st.session_state.conversation = Conversation(get_agent_parts())
     return st.session_state.conversation
 
 
