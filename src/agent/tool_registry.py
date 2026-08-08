@@ -1,6 +1,6 @@
 import inspect
 import re
-from typing import Callable, Literal, get_origin, get_type_hints
+from typing import Callable, Literal, get_args, get_origin, get_type_hints
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -25,6 +25,10 @@ class ParameterSchema(BaseModel):
 
     type: JsonType
     description: str = ""
+    # Element type of an array parameter. Gemini requires it for ARRAY and
+    # rejects the declaration without it; it stays None for every other type,
+    # which is why both adapters dump their schemas with exclude_none.
+    items: "ParameterSchema | None" = None
 
 
 class ParametersSchema(BaseModel):
@@ -106,10 +110,18 @@ class ToolRegistry:
         properties, required = {}, []
         for name, param in inspect.signature(handler).parameters.items():
             hint = hints.get(name, str)
+            origin = get_origin(hint) or hint
             properties[name] = {
-                "type": PY_TO_JSON.get(get_origin(hint) or hint, "string"),
+                "type": PY_TO_JSON.get(origin, "string"),
                 "description": param_docs.get(name, ""),
             }
+            if origin is list:
+                # list[int] -> items {"type": "integer"}. A bare list has no
+                # element type to read, so it falls back to string.
+                element = next(iter(get_args(hint)), str)
+                properties[name]["items"] = {
+                    "type": PY_TO_JSON.get(element, "string")
+                }
             if param.default is inspect.Parameter.empty:
                 required.append(name)
 

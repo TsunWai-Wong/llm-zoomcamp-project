@@ -1,4 +1,4 @@
-from .base import ChatResponse, Provider, ToolCall, ToolResult
+from .base import ChatResponse, Provider, ToolCall, ToolResult, Usage
 from .openai_provider import OpenAIProvider
 from .registry import ModelProviderRegistry, registry
 
@@ -10,5 +10,6 @@ __all__ = [
     "Provider",
     "ToolCall",
     "ToolResult",
+    "Usage",
     "registry",
 ]

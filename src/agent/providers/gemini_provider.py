@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from src.agent.tool_registry import ToolSchema
 
-from .base import ChatResponse, ToolCall, ToolResult
+from .base import ChatResponse, ToolCall, ToolResult, Usage
 
 
 DEFAULT_MODEL = "gemini-2.5-flash"
@@ -99,10 +99,72 @@ class GeminiProvider:
             ),
         ]
 
+    def split_turns(
+        self, messages: list, keep_last_turns: int
+    ) -> tuple[list, list]:
+        if keep_last_turns <= 0:
+            return list(messages), []
+
+        boundaries = [
+            index
+            for index, content in enumerate(messages)
+            if self._is_user_turn(content)
+        ]
+        if len(boundaries) <= keep_last_turns:
+            return [], list(messages)
+
+        cut = boundaries[-keep_last_turns]
+        return list(messages[:cut]), list(messages[cut:])
+
+    def compact(self, messages: list, keep_last_turns: int = 1) -> list:
+        older, recent = self.split_turns(messages, keep_last_turns)
+
+        kept = []
+        for content in older:
+            # Rebuilding from the text parts alone drops function calls and
+            # function responses while preserving a model turn that mixed text
+            # with a call. A turn left with nothing is dropped outright: an
+            # empty parts list is rejected, as extend() already notes.
+            texts = [part for part in self._parts(content) if part.text]
+            if texts:
+                kept.append(types.Content(role=content.role, parts=texts))
+
+        return [*kept, *recent]
+
+    def render_transcript(self, messages: list) -> str:
+        lines = []
+        for content in messages:
+            text = "".join(
+                part.text for part in self._parts(content) if part.text
+            )
+            if not text:
+                continue
+            speaker = "User" if content.role == "user" else "Assistant"
+            lines.append(f"{speaker}: {text}")
+        return "\n\n".join(lines)
+
     def is_retryable(self, error: Exception) -> bool:
         return (
             isinstance(error, errors.APIError)
             and error.code in RETRYABLE_STATUS_CODES
+        )
+
+    @staticmethod
+    def _parts(content: Any) -> list:
+        return getattr(content, "parts", None) or []
+
+    @classmethod
+    def _is_user_turn(cls, content: Any) -> bool:
+        """Whether this content is a real user question, not a tool result.
+
+        Function results also ride under the user role — Gemini has no tool
+        role — so the role alone cannot tell the two apart, and cutting the
+        history at a tool result would strand the call it belongs to.
+        """
+        if getattr(content, "role", None) != "user":
+            return False
+        return not any(
+            part.function_response is not None for part in cls._parts(content)
         )
 
     @staticmethod
@@ -111,7 +173,7 @@ class GeminiProvider:
         return types.FunctionDeclaration(
             name=schema.name,
             description=schema.description,
-            parameters=schema.parameters.model_dump(),
+            parameters=schema.parameters.model_dump(exclude_none=True),
         )
 
     @staticmethod
@@ -140,9 +202,20 @@ class GeminiProvider:
             elif part.text:
                 texts.append(part.text)
 
+        usage = getattr(response, "usage_metadata", None)
+
         return ChatResponse(
             text="".join(texts) if texts else None,
             tool_calls=tool_calls,
+            # Every count is optional on the SDK model, so none of them can be
+            # passed through to the non-optional normalized type unguarded.
+            usage=Usage(
+                input_tokens=usage.prompt_token_count or 0,
+                output_tokens=usage.candidates_token_count or 0,
+                total_tokens=usage.total_token_count or 0,
+            )
+            if usage
+            else None,
             # Only set when a response_schema was requested.
             parsed=getattr(response, "parsed", None),
             raw=response,

@@ -40,6 +40,22 @@ class ToolResult(BaseModel):
     output: str
 
 
+class Usage(BaseModel):
+    """Token counts for one model call, normalized across providers.
+
+    Reported by the API rather than estimated locally, so the numbers the
+    compaction thresholds compare against are the ones that were actually
+    billed. Providers name these differently — OpenAI says input/output,
+    Gemini says prompt/candidates — and that difference dies in the adapter.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+
+
 class ChatResponse(BaseModel):
     """One model turn, normalized across providers."""
 
@@ -47,6 +63,9 @@ class ChatResponse(BaseModel):
 
     text: str | None = None
     tool_calls: list[ToolCall] = Field(default_factory=list)
+    # None when the provider did not report usage; callers must handle that
+    # rather than assume a zero count means an empty prompt.
+    usage: Usage | None = None
     # The structured-output instance, populated only when text_format was given.
     parsed: Any = None
     # The untouched provider response. Excluded from model_dump() so a
@@ -65,6 +84,11 @@ class Provider(Protocol):
     shape the provider's SDK wants, and no caller inspects it. That keeps the
     agent loop provider-agnostic without a full Message type per provider, and
     it can be promoted to normalized messages later by changing only adapters.
+
+    Context management is why split_turns(), compact() and render_transcript()
+    exist here rather than in the agent: they are the only operations that must
+    read that opaque history, so they are implemented once per format and the
+    policy deciding when to call them stays provider-agnostic in Conversation.
     """
 
     default_model: str
@@ -96,6 +120,35 @@ class Provider(Protocol):
         results: list[ToolResult],
     ) -> list:
         """Append a model turn, and any tool outputs, to the history."""
+        ...
+
+    def split_turns(
+        self, messages: list, keep_last_turns: int
+    ) -> tuple[list, list]:
+        """Split history into (older, recent) at a user-turn boundary.
+
+        Only a real user question starts a turn — never a tool result, which
+        some providers also send under the user role. Cutting anywhere else
+        would separate a tool call from its result and make the next request
+        invalid, so this is the only place a split may happen.
+        """
+        ...
+
+    def compact(self, messages: list, keep_last_turns: int = 1) -> list:
+        """Drop tool traffic from every turn but the most recent ones.
+
+        Older turns keep only the question and the answer text. Removing whole
+        items rather than parts of them is what makes orphaned call/result
+        pairs impossible instead of merely unlikely.
+        """
+        ...
+
+    def render_transcript(self, messages: list) -> str:
+        """Flatten history to plain text for the summarizer.
+
+        Only ever runs on already-compacted history, so it sees questions and
+        answers and never has to render tool traffic.
+        """
         ...
 
     def is_retryable(self, error: Exception) -> bool:

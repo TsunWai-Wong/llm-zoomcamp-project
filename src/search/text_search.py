@@ -74,6 +74,27 @@ class TextSearch:
             )
             return [hit["_source"] for hit in hits]
 
+    def get_by_ids(self, ids: list[int]) -> list[dict]:
+        """Fetch whole songs by id, in the order they were asked for.
+
+        The index is keyed by song id, so this is a direct lookup rather than
+        a search — it is how a shortlist of candidates becomes full lyrics.
+        Ids that do not exist are simply absent from the result.
+        """
+        if not ids:
+            return []
+
+        with tracer.start_as_current_span(
+            "get_by_ids", openinference_span_kind="retriever"
+        ) as span:
+            span.set_input(", ".join(str(song_id) for song_id in ids))
+            response = self.es_client.mget(
+                index=self.index_name, ids=[str(song_id) for song_id in ids]
+            )
+            documents = [doc["_source"] for doc in response["docs"] if doc["found"]]
+            set_documents(span, documents)
+            return documents
+
     def _text_search(self, query: str, num_results: int) -> list[dict]:
         search_query = {
             "size": num_results,
