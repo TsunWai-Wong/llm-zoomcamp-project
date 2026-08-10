@@ -167,6 +167,7 @@ if __name__ == "__main__":
     from src.search.search_tools import SearchTools
     from src.agent.tool_registry import ToolRegistry
     from src.agent.rag_agent import RAGAgent
+    from src.agent.skills import SkillRegistry
 
     loader = DataLoader()
     data = loader.load_data()
@@ -186,10 +187,15 @@ if __name__ == "__main__":
     # model sees.
     search_tools = SearchTools(hybrid_search, text_search)
 
+    skills = SkillRegistry("skills")
+
     tools = ToolRegistry()
     tools.register("search_song", search_tools.search_song)
     tools.register("get_lyrics", search_tools.get_lyrics)
-    agent = RAGAgent(tools, LLMService(), Prompt.get_agent_instruction())
+    # Registered here too: an eval of an agent without its skills measures
+    # something other than what ships.
+    tools.register("load_skill", skills.load_skill)
+    agent = RAGAgent(tools, LLMService(), Prompt.get_agent_instruction(), skills)
     conversation = Conversation(agent)
 
 

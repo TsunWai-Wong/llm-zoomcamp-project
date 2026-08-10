@@ -4,8 +4,10 @@ from openinference.semconv.trace import SpanAttributes
 
 from src.monitoring import get_tracer
 
+from .context_assembler import ContextAssembler
 from .llm_service import LLMService
 from .providers import ToolResult, Usage
+from .skills import SkillRegistry
 from .tool_registry import ToolRegistry
 
 tracer = get_tracer(__name__)
@@ -16,16 +18,28 @@ class AgentLoopError(Exception):
 class RAGAgent:
     tools: ToolRegistry
     llm: LLMService
-    instruction: str
+    context: ContextAssembler
+    skills: SkillRegistry | None
 
 
-    def __init__(self, tools: ToolRegistry, llm: LLMService, instruction: str):
+    def __init__(
+        self,
+        tools: ToolRegistry,
+        llm: LLMService,
+        instruction: str,
+        skills: SkillRegistry | None = None,
+    ):
         self.tools = tools
         self.llm = llm
         # The instruction describes the agent, not any one conversation, so it
         # sits alongside the tools and the model. Being immutable is what lets
         # an agent be built once and shared while histories stay per session.
-        self.instruction = instruction
+        # The assembler owns it now: what the model reads is the instruction
+        # plus whatever sections apply to this request.
+        self.context = ContextAssembler(instruction)
+        # Optional, so the eval scripts and any caller with no skills directory
+        # keep working unchanged — the menu section simply never appears.
+        self.skills = skills
 
     def agentic_loop(
         self,
@@ -57,9 +71,18 @@ class RAGAgent:
             last_usage = None
 
             for _ in range(max_turns):
+                # Reassembled every iteration, not once before the loop: this is
+                # what makes load_skill take effect. The call lands mid-turn, and
+                # the doc it activated has to be in the instruction on the very
+                # next request rather than after the answer is already written.
                 response = self.llm.chat(
                     messages=messages,
-                    system=self.instruction,
+                    system=self.context.build(
+                        skills=self.skills.get_menu() if self.skills else None,
+                        skill_docs=(
+                            self.skills.get_active_docs() if self.skills else None
+                        ),
+                    ),
                     tools=tool_schemas,
                 )
 

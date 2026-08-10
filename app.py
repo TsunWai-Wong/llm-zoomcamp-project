@@ -8,6 +8,7 @@ from src.agent.conversation import Conversation
 from src.agent.llm_service import LLMService
 from src.agent.prompts import Prompt
 from src.agent.rag_agent import RAGAgent
+from src.agent.skills import SkillRegistry
 from src.agent.tool_registry import ToolRegistry
 from src.etl.data_loader import DataLoader
 from src.monitoring.tracing import setup_tracing
@@ -73,11 +74,14 @@ def get_agent_parts():
     hybrid_search = HybridSearch(text_search, vector_search)
     search_tools = SearchTools(hybrid_search, text_search)
 
+    skills = SkillRegistry("skills")
+
     tools = ToolRegistry()
     tools.register("search_song", search_tools.search_song)
     tools.register("get_lyrics", search_tools.get_lyrics)
+    tools.register("load_skill", skills.load_skill)
 
-    return RAGAgent(tools, LLMService(), Prompt.get_agent_instruction())
+    return RAGAgent(tools, LLMService(), Prompt.get_agent_instruction(), skills)
 
 
 def get_conversation():
